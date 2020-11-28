@@ -8,53 +8,53 @@ import math
 import pandas as pd
 from sklearn.cluster import KMeans
 import colorsys
+import sys
+
+# 正方形にトリミング（中央寄せ）
+def trimmingImg(im=[[[0,0,0]]]):
+    IMG_HEIGHT = im.shape[0]
+    IMG_WIDTH = im.shape[1]
+
+    LONG_SIDE_AXIS = None
+    SHORT_SIDE_AXIS = None
+
+    if IMG_HEIGHT < IMG_WIDTH: # 画像が横長
+        LONG_SIDE_AXIS = 1
+        SHORT_SIDE_AXIS = 0
+    else: # 画像が縦長
+        LONG_SIDE_AXIS = 0
+        SHORT_SIDE_AXIS = 1
+    
+    LONG_SIDE_LENGTH = max(IMG_HEIGHT, IMG_WIDTH)
+    SHORT_SIDE_LENGTH = min(IMG_HEIGHT, IMG_WIDTH)
+
+    TARGET_LENGTH = math.floor(SHORT_SIDE_LENGTH / ART_WH) # 1辺の長さが ART_WIDTH の倍数になるよう切り落とし
+    SHARD = LONG_SIDE_LENGTH - TARGET_LENGTH
+
+    im = np.delete(im, np.s_[math.floor((SHORT_SIDE_LENGTH - TARGET_LENGTH) / 2):], SHORT_SIDE_AXIS)
+    im = np.delete(im, np.s_[:math.ceil(SHARD / 2)], SHORT_SIDE_AXIS)
+    im = np.delete(im, np.s_[LONG_SIDE_LENGTH -
+                            math.floor((LONG_SIDE_LENGTH - TARGET_LENGTH) / 2):], LONG_SIDE_AXIS)
+    im = np.delete(im, np.s_[:math.ceil((LONG_SIDE_LENGTH - TARGET_LENGTH) / 2)], LONG_SIDE_AXIS)
 
 # RGBの数値が1桁の場合冒頭に0をつけて2桁にして返す
-
-
-def addZero(hexRGB):
-    if len(hexRGB) == 3:
-        return '0x0' + hexRGB[2]
+def addZero(strHexNum='0xAA'):
+    if len(strHexNum) == 3:
+        return '0x0' + strHexNum[2]
+    elif len(strHexNum) == 4:
+        return strHexNum
     else:
-        return hexRGB
+        print('error!')
+        sys.exit()
 
 # RGBをカラーコードに変換
-
-
-def RGBtoColorCode(R, G, B):
-    color_code = '{}{}{}'.format(addZero(hex(R)), addZero(
-        hex(G)), addZero(hex(B)))  # 0xAA0xBB0xCC の形
-    color_code = color_code.replace('0x', '')
+def RGBtoColorCode(RGB=[0, 0, 0]):
+    color_code = ''
+    for color in range(COLOR_VARIETY):
+        color_code += str(addZero(hex(RGB[color])))
+    color_code = color_code.replace('0x', '') # 0xrr0xgg0xbb を rrggbb の形にする
     return color_code
 
-# 色相 (0 < H < 360)
-def getHue(RGBlist=[0,0,0]):
-    max_color = max(RGBlist)
-    min_color = min(RGBlist)
-    r = RGBlist[0]
-    g = RGBlist[1]
-    b = RGBlist[2]
-    H = 0
-    if r > g and r > b:
-        H = 60 * ((g - b) / (max_color - min_color))
-    elif g > b and g > r:
-        H = 60 * ((b - r) / (max_color - min_color)) + 120
-    elif b > r and b > g:
-        H = 60 * ((r - g) / (max_color - min_color)) + 240
-    else:
-        H = 0
-
-    if H < 0:
-        H += 360
-    
-    return H
-
-# 彩度 (0 < S < 1)
-def getSaturation(RGBlist=[0,0,0]):
-    max_color = max(RGBlist)
-    min_color = min(RGBlist)
-    S = (max_color - min_color) / max_color
-    return S
 
 # 明度 (0 < V < 255)
 def getBrightness(RGBlist=[0,0,0]):
@@ -69,69 +69,75 @@ def getFontColor(RGBlist=[0,0,0]):
     else:
         return 'FFFFFF'
 
+# デザインゾーンの枠線を追加
+def drawRuledLine(ws=openpyxl.Workbook().worksheets[0]):
+    side1 = Side(style='thick', color='000000')
+    for i in range(3, ART_WH + 1):
+        ws.cell(row=2, column=i).border = Border(top=side1)
+    for i in range(3, ART_WH + 1):
+        ws.cell(row=i, column=2).border = Border(left=side1)
+    for i in range(3, ART_WH + 1):
+        ws.cell(row=i, column=ART_WH+1).border = Border(right=side1)
+    for i in range(3, ART_WH + 1):
+        ws.cell(row=ART_WH+1, column=i).border = Border(bottom=side1)
+    ws.cell(row=2, column=2).border = Border(top=side1, left=side1)
+    ws.cell(row=2, column=ART_WH+1).border = Border(top=side1, right=side1)
+    ws.cell(row=ART_WH+1, column=2).border = Border(left=side1, bottom=side1)
+    ws.cell(row=ART_WH+1, column=ART_WH +
+            1).border = Border(right=side1, bottom=side1)
+
+    # デザインゾーンの破線を追加
+    side2 = Side(style='mediumDashed', color='000000')
+    for i in range(3, ART_WH + 1):
+        ws.cell(row=round(ART_WH / 2) + 1, column=i).border = Border(bottom=side2)
+    for i in range(3, ART_WH + 1):
+        ws.cell(row=i, column=round(ART_WH / 2) + 1).border = Border(right=side2)
+    ws.cell(row=round(ART_WH / 2) + 1, column=round(ART_WH / 2) + 1).border = Border(right=side2, bottom=side2)
+    ws.cell(row=round(ART_WH / 2) + 2, column=round(ART_WH / 2) + 2).border = Border(top=side2, left=side2)
+    ws.cell(row=2, column=round(ART_WH / 2) + 1).border = Border(top=side1, right=side2)
+    ws.cell(row=round(ART_WH / 2) + 1, column=2).border = Border(left=side1, bottom=side2)
+    ws.cell(row=round(ART_WH / 2) + 1, column=ART_WH + 1).border = Border(right=side1, bottom=side2)
+    ws.cell(row=ART_WH + 1, column=round(ART_WH / 2) + 1).border = Border(bottom=side1, right=side2)
+
+
 
 
 # あつ森の仕様
-art_wh = 32
-art_palette = 15
-art_color_variety = 30
-art_brightness_variety = 15
-art_vividness_variety = 15
+ART_WH = 32
+ART_PALETTE = 15
+ART_COLOR_VARIETY = 30
+ART_BRIGHTNESS_VARIERY = 15
+ART_VIVIDNESS_VARIETY = 15
 
 # ファイルのインポート
-input_file = 'icon_akane.jpg'
-im = np.array(Image.open(input_file))
+if len(sys.argv) != 2:
+    sys.exit()
+
+input_file = sys.argv[1]
+im = np.array(Image.open('figure/' + input_file))
+
+trimmingImg(im)
+
+# 切り取った画像を保存
+Image.fromarray(im.astype(np.uint8)).save('squaredFigure/' + input_file)
 
 # 画像のサイズを取得
-originalImg_height = im.shape[0]
-originalImg_width = im.shape[1]
-
-# 1辺の長さがart_whの倍数になるよう正方形にトリミング（中央寄せ）
-short_side_len = min(originalImg_height, originalImg_width)
-long_side_len = max(originalImg_height, originalImg_width)
-shard = short_side_len % art_wh
-target_size = short_side_len - shard
-im = np.delete(im, np.s_[short_side_len - math.floor(shard / 2):], 0)
-im = np.delete(im, np.s_[:math.ceil(shard / 2)], 0)
-im = np.delete(im, np.s_[long_side_len -
-                         math.floor((long_side_len - target_size) / 2):], 1)
-im = np.delete(im, np.s_[:math.ceil((long_side_len - target_size)/2)], 1)
-
-img_new = Image.fromarray(im.astype(np.uint8))
-img_new.save('square_' + input_file)
-
-# 画像のサイズを取得
-img_height = im.shape[0]
-img_width = im.shape[1]
-
+IMG_HEIGHT = im.shape[0]
+IMG_WIDTH = im.shape[1]
+COLOR_VARIETY = im.shape[2]
 
 # ワークブックを作成
 wb = openpyxl.Workbook()
 ws = wb.worksheets[0]
 
+drawRuledLine()
 
-# デザインゾーンの枠線を追加
-side1 = Side(style='thick', color='000000')
-for i in range(3, art_wh + 1):
-    ws.cell(row=2, column=i).border = Border(top=side1)
-for i in range(3, art_wh + 1):
-    ws.cell(row=i, column=2).border = Border(left=side1)
-for i in range(3, art_wh + 1):
-    ws.cell(row=i, column=art_wh+1).border = Border(right=side1)
-for i in range(3, art_wh + 1):
-    ws.cell(row=art_wh+1, column=i).border = Border(bottom=side1)
-ws.cell(row=2, column=2).border = Border(top=side1, left=side1)
-ws.cell(row=2, column=art_wh+1).border = Border(top=side1, right=side1)
-ws.cell(row=art_wh+1, column=2).border = Border(left=side1, bottom=side1)
-ws.cell(row=art_wh+1, column=art_wh +
-        1).border = Border(right=side1, bottom=side1)
 
 # デザインゾーンのセルを正方形に整形
-for x in range(1, art_wh+1):
+for x in range(1, ART_WH+1):
     ws.column_dimensions[get_column_letter(x+1)].width = 4
-for y in range(1, art_wh+1):
+for y in range(1, ART_WH+1):
     ws.row_dimensions[y+1].height = 22
-
 
 # art_wh * art_wh のドット絵を生成
 RGB_art_wh = []
@@ -139,14 +145,14 @@ df_all_color = pd.DataFrame(columns=['R', 'G', 'B'])
 
 color_count = 0
 
-for r in range(art_wh):
+for r in range(ART_WH):
     RGB_art_wh.append([])
 
-    for c in range(art_wh):
+    for c in range(ART_WH):
         RGB_ave = [0, 0, 0]
 
         # n×nピクセルの平均RGBをセルの背景色とする
-        n = int(img_width / art_wh)
+        n = int(IMG_WIDTH / ART_WH)
         for i in range(n):
             for j in range(n):
                 for color in range(im.shape[2]):
@@ -193,21 +199,20 @@ for i in range(15):
     # HSV_list[i].append(round(getSaturation(list(cluster_RGB))*15))
     # HSV_list[i].append(round(getBrightness(list(cluster_RGB))/255*15))
 
-print(HSV_list)
+
+# ゲージ
+GAUGE_WIDTH = 30
+now_pacentage = 0 # 範囲: 0 - 100
 
 # 描画
 for index, row in df_all_color.iterrows():
-    r = cluster_RGB_list[row['color']][0]
-    g = cluster_RGB_list[row['color']][1]
-    b = cluster_RGB_list[row['color']][2]
-    color_code = RGBtoColorCode(r, g, b)
+    color_code = RGBtoColorCode(cluster_RGB_list[row['color']])
     fill = PatternFill(patternType='solid', fgColor=color_code)
-    row_num = math.ceil((index + 1) / art_wh) + 1
-    col_num = index % art_wh + 2
+    row_num = math.ceil((index + 1) / ART_WH) + 1
+    col_num = index % ART_WH + 2
     ws.cell(row=row_num, column=col_num).fill = fill
     ws.cell(row=row_num, column=col_num).value = row['color'] + 1
-    ws.cell(row=row_num, column=col_num).font = openpyxl.styles.fonts.Font(color=getFontColor([r,g,b]))
-
+    ws.cell(row=row_num, column=col_num).font = openpyxl.styles.fonts.Font(color=getFontColor(cluster_RGB_list[row['color']]))
 
 
 # カラーパレット
@@ -215,26 +220,23 @@ ws['AJ2'].value = '色相'
 ws['AK2'].value = '彩度'
 ws['AL2'].value = '明度'
 
-for i in range(art_palette):
-    r = cluster_RGB_list[i][0]
-    g = cluster_RGB_list[i][1]
-    b = cluster_RGB_list[i][2]
-    color_code = RGBtoColorCode(r, g, b)
+for i in range(ART_PALETTE):
+    color_code = RGBtoColorCode(cluster_RGB_list[i])
     fill = PatternFill(patternType='solid', fgColor=color_code)
-    ws.cell(row=i+3, column=art_wh + 3).fill = fill
-    ws.cell(row=i+3, column=art_wh + 3).value = i + 1
-    ws.cell(row=i+3, column=art_wh + 3).font = openpyxl.styles.fonts.Font(color=getFontColor([r,g,b]))
+    ws.cell(row=i+3, column=ART_WH + 3).fill = fill
+    ws.cell(row=i+3, column=ART_WH + 3).value = i + 1
+    ws.cell(row=i+3, column=ART_WH + 3).font = openpyxl.styles.fonts.Font(color=getFontColor(cluster_RGB_list[i]))
 
-    ws.cell(row=i+3, column=art_wh + 4).value = HSV_list[i][0]
-    ws.cell(row=i+3, column=art_wh + 5).value = HSV_list[i][1]
-    ws.cell(row=i+3, column=art_wh + 6).value = HSV_list[i][2]
+    ws.cell(row=i+3, column=ART_WH + 4).value = HSV_list[i][0]
+    ws.cell(row=i+3, column=ART_WH + 5).value = HSV_list[i][1]
+    ws.cell(row=i+3, column=ART_WH + 6).value = HSV_list[i][2]
 
 # ファイルのエクスポート
 print('')
 print("saving...")
 
 output_file = input_file.replace('.jpg', '.xlsx')
-wb.save(output_file)
+wb.save('result/' + output_file)
 wb.close()
 
 print("complete!")
