@@ -52,54 +52,52 @@ def RGBtoColorCode(RGB=[0, 0, 0]):
     color_code = ''
     for color in range(COLOR_VARIETY):
         color_code += str(addZero(hex(RGB[color])))
-    color_code = color_code.replace('0x', '') # 0xrr0xgg0xbb を rrggbb の形にする
+    color_code = color_code.replace('0x', '') # '0xrr0xgg0xbb' を 'rrggbb' にする
     return color_code
 
 
 # 明度 (0 < V < 255)
-def getBrightness(RGBlist=[0,0,0]):
-    max_color = max(RGBlist)
+def getBrightness(RGB=[0,0,0]):
+    max_color = max(RGB)
     V = max_color
     return V
 
 # 背景色によって文字色を変える
-def getFontColor(RGBlist=[0,0,0]):
-    if getBrightness(RGBlist) > 200:
+def getFontColor(RGB=[0,0,0]):
+    if getBrightness(RGB) > 200:
         return '000000'
     else:
         return 'FFFFFF'
 
 # デザインゾーンの枠線を追加
 def drawRuledLine(ws=openpyxl.Workbook().worksheets[0]):
-    side1 = Side(style='thick', color='000000')
+    thick = Side(style='thick', color='000000')
     for i in range(3, ART_WH + 1):
-        ws.cell(row=2, column=i).border = Border(top=side1)
+        ws.cell(row=2, column=i).border = Border(top=thick)
     for i in range(3, ART_WH + 1):
-        ws.cell(row=i, column=2).border = Border(left=side1)
+        ws.cell(row=i, column=2).border = Border(left=thick)
     for i in range(3, ART_WH + 1):
-        ws.cell(row=i, column=ART_WH+1).border = Border(right=side1)
+        ws.cell(row=i, column=ART_WH+1).border = Border(right=thick)
     for i in range(3, ART_WH + 1):
-        ws.cell(row=ART_WH+1, column=i).border = Border(bottom=side1)
-    ws.cell(row=2, column=2).border = Border(top=side1, left=side1)
-    ws.cell(row=2, column=ART_WH+1).border = Border(top=side1, right=side1)
-    ws.cell(row=ART_WH+1, column=2).border = Border(left=side1, bottom=side1)
+        ws.cell(row=ART_WH+1, column=i).border = Border(bottom=thick)
+    ws.cell(row=2, column=2).border = Border(top=thick, left=thick)
+    ws.cell(row=2, column=ART_WH+1).border = Border(top=thick, right=thick)
+    ws.cell(row=ART_WH+1, column=2).border = Border(left=thick, bottom=thick)
     ws.cell(row=ART_WH+1, column=ART_WH +
-            1).border = Border(right=side1, bottom=side1)
+            1).border = Border(right=thick, bottom=thick)
 
     # デザインゾーンの破線を追加
-    side2 = Side(style='mediumDashed', color='000000')
+    mediumDashed = Side(style='mediumDashed', color='000000')
     for i in range(3, ART_WH + 1):
-        ws.cell(row=round(ART_WH / 2) + 1, column=i).border = Border(bottom=side2)
+        ws.cell(row=round(ART_WH / 2) + 1, column=i).border = Border(bottom=mediumDashed)
     for i in range(3, ART_WH + 1):
-        ws.cell(row=i, column=round(ART_WH / 2) + 1).border = Border(right=side2)
-    ws.cell(row=round(ART_WH / 2) + 1, column=round(ART_WH / 2) + 1).border = Border(right=side2, bottom=side2)
-    ws.cell(row=round(ART_WH / 2) + 2, column=round(ART_WH / 2) + 2).border = Border(top=side2, left=side2)
-    ws.cell(row=2, column=round(ART_WH / 2) + 1).border = Border(top=side1, right=side2)
-    ws.cell(row=round(ART_WH / 2) + 1, column=2).border = Border(left=side1, bottom=side2)
-    ws.cell(row=round(ART_WH / 2) + 1, column=ART_WH + 1).border = Border(right=side1, bottom=side2)
-    ws.cell(row=ART_WH + 1, column=round(ART_WH / 2) + 1).border = Border(bottom=side1, right=side2)
-
-
+        ws.cell(row=i, column=round(ART_WH / 2) + 1).border = Border(right=mediumDashed)
+    ws.cell(row=round(ART_WH / 2) + 1, column=round(ART_WH / 2) + 1).border = Border(right=mediumDashed, bottom=mediumDashed)
+    ws.cell(row=round(ART_WH / 2) + 2, column=round(ART_WH / 2) + 2).border = Border(top=mediumDashed, left=mediumDashed)
+    ws.cell(row=2, column=round(ART_WH / 2) + 1).border = Border(top=side1, right=mediumDashed)
+    ws.cell(row=round(ART_WH / 2) + 1, column=2).border = Border(left=side1, bottom=mediumDashed)
+    ws.cell(row=round(ART_WH / 2) + 1, column=ART_WH + 1).border = Border(right=side1, bottom=mediumDashed)
+    ws.cell(row=ART_WH + 1, column=round(ART_WH / 2) + 1).border = Border(bottom=side1, right=mediumDashed)
 
 
 # あつ森の仕様
