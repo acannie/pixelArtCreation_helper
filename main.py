@@ -10,7 +10,6 @@ from sklearn.cluster import KMeans
 import colorsys
 import sys
 
-# 正方形にトリミング（中央寄せ）
 def trimmingImg(im=[[[0,0,0]]]):
     IMG_HEIGHT = im.shape[0]
     IMG_WIDTH = im.shape[1]
@@ -28,14 +27,15 @@ def trimmingImg(im=[[[0,0,0]]]):
     LONG_SIDE_LENGTH = max(IMG_HEIGHT, IMG_WIDTH)
     SHORT_SIDE_LENGTH = min(IMG_HEIGHT, IMG_WIDTH)
 
-    TARGET_LENGTH = math.floor(SHORT_SIDE_LENGTH / ART_WH) # 1辺の長さが ART_WIDTH の倍数になるよう切り落とし
+    TARGET_LENGTH = SHORT_SIDE_LENGTH - SHORT_SIDE_LENGTH % ART_WH # 1辺の長さが ART_WIDTH の倍数になるよう切り落とし
     SHARD = LONG_SIDE_LENGTH - TARGET_LENGTH
 
-    im = np.delete(im, np.s_[math.floor((SHORT_SIDE_LENGTH - TARGET_LENGTH) / 2):], SHORT_SIDE_AXIS)
-    im = np.delete(im, np.s_[:math.ceil(SHARD / 2)], SHORT_SIDE_AXIS)
-    im = np.delete(im, np.s_[LONG_SIDE_LENGTH -
-                            math.floor((LONG_SIDE_LENGTH - TARGET_LENGTH) / 2):], LONG_SIDE_AXIS)
-    im = np.delete(im, np.s_[:math.ceil((LONG_SIDE_LENGTH - TARGET_LENGTH) / 2)], LONG_SIDE_AXIS)
+    im = np.delete(im, np.s_[SHORT_SIDE_LENGTH - math.floor((SHORT_SIDE_LENGTH - TARGET_LENGTH) / 2):], SHORT_SIDE_AXIS)
+    im = np.delete(im, np.s_[:math.ceil((SHORT_SIDE_LENGTH - TARGET_LENGTH) / 2)], SHORT_SIDE_AXIS)
+    im = np.delete(im, np.s_[LONG_SIDE_LENGTH - math.floor(SHARD / 2):], LONG_SIDE_AXIS)
+    im = np.delete(im, np.s_[:math.ceil(SHARD / 2)], LONG_SIDE_AXIS)
+
+    return im
 
 # RGBの数値が1桁の場合冒頭に0をつけて2桁にして返す
 def addZero(strHexNum='0xAA'):
@@ -94,11 +94,22 @@ def drawRuledLine(ws=openpyxl.Workbook().worksheets[0]):
         ws.cell(row=i, column=round(ART_WH / 2) + 1).border = Border(right=mediumDashed)
     ws.cell(row=round(ART_WH / 2) + 1, column=round(ART_WH / 2) + 1).border = Border(right=mediumDashed, bottom=mediumDashed)
     ws.cell(row=round(ART_WH / 2) + 2, column=round(ART_WH / 2) + 2).border = Border(top=mediumDashed, left=mediumDashed)
-    ws.cell(row=2, column=round(ART_WH / 2) + 1).border = Border(top=side1, right=mediumDashed)
-    ws.cell(row=round(ART_WH / 2) + 1, column=2).border = Border(left=side1, bottom=mediumDashed)
-    ws.cell(row=round(ART_WH / 2) + 1, column=ART_WH + 1).border = Border(right=side1, bottom=mediumDashed)
-    ws.cell(row=ART_WH + 1, column=round(ART_WH / 2) + 1).border = Border(bottom=side1, right=mediumDashed)
+    ws.cell(row=2, column=round(ART_WH / 2) + 1).border = Border(top=thick, right=mediumDashed)
+    ws.cell(row=round(ART_WH / 2) + 1, column=2).border = Border(left=thick, bottom=mediumDashed)
+    ws.cell(row=round(ART_WH / 2) + 1, column=ART_WH + 1).border = Border(right=thick, bottom=mediumDashed)
+    ws.cell(row=ART_WH + 1, column=round(ART_WH / 2) + 1).border = Border(bottom=thick, right=mediumDashed)
 
+# デザインゾーンのセルを正方形に整形
+def makeCellsSquare(ws=openpyxl.Workbook().worksheets[0]):
+    for x in range(1, ART_WH+1):
+        ws.column_dimensions[get_column_letter(x+1)].width = 4
+    for y in range(1, ART_WH+1):
+        ws.row_dimensions[y+1].height = 22
+
+# 定数
+R = 0
+G = 1
+B = 2
 
 # あつ森の仕様
 ART_WH = 32
@@ -109,12 +120,13 @@ ART_VIVIDNESS_VARIETY = 15
 
 # ファイルのインポート
 if len(sys.argv) != 2:
+    print('please specify the image file.')
     sys.exit()
 
 input_file = sys.argv[1]
 im = np.array(Image.open('figure/' + input_file))
 
-trimmingImg(im)
+im = trimmingImg(im)
 
 # 切り取った画像を保存
 Image.fromarray(im.astype(np.uint8)).save('squaredFigure/' + input_file)
@@ -128,16 +140,10 @@ COLOR_VARIETY = im.shape[2]
 wb = openpyxl.Workbook()
 ws = wb.worksheets[0]
 
-drawRuledLine()
+drawRuledLine(ws)
+makeCellsSquare(ws)
 
-
-# デザインゾーンのセルを正方形に整形
-for x in range(1, ART_WH+1):
-    ws.column_dimensions[get_column_letter(x+1)].width = 4
-for y in range(1, ART_WH+1):
-    ws.row_dimensions[y+1].height = 22
-
-# art_wh * art_wh のドット絵を生成
+# ART_WH * ART_WH のドット絵を生成
 RGB_art_wh = []
 df_all_color = pd.DataFrame(columns=['R', 'G', 'B'])
 
@@ -147,60 +153,59 @@ for r in range(ART_WH):
     RGB_art_wh.append([])
 
     for c in range(ART_WH):
-        RGB_ave = [0, 0, 0]
+        # N x N ピクセルの平均 RGB をセルの背景色とする
+        ave_RGB = [0, 0, 0]
 
-        # n×nピクセルの平均RGBをセルの背景色とする
-        n = int(IMG_WIDTH / ART_WH)
-        for i in range(n):
-            for j in range(n):
-                for color in range(im.shape[2]):
-                    RGB_ave[color] += im[n * r + i][n * c + j][color]
+        N = math.floor(IMG_WIDTH / ART_WH)
+        for i in range(N):
+            for j in range(N):
+                for color in range(COLOR_VARIETY):
+                    ave_RGB[color] += im[N * r + i][N * c + j][color]
 
-        for color in range(im.shape[2]):
-            RGB_ave[color] = round(RGB_ave[color] / n**2)
+        for color in range(COLOR_VARIETY):
+            ave_RGB[color] = round(ave_RGB[color] / N**2)
 
-        RGB_art_wh[r].append(RGB_ave)
+        RGB_art_wh[r].append(ave_RGB)
         df_all_color = df_all_color.append(
-            {'R': RGB_ave[0], 'G': RGB_ave[1], 'B': RGB_ave[2]}, ignore_index=True)
+            {'R': ave_RGB[0], 'G': ave_RGB[1], 'B': ave_RGB[2]}, ignore_index=True)
         color_count += 1
 
-cust_array = np.array([df_all_color['R'].tolist(),
+color_array = np.array([df_all_color['R'].tolist(),
                        df_all_color['G'].tolist(),
                        df_all_color['B'].tolist(), ], np.int32)
 
 # 行列を転置
-cust_array = cust_array.T
+color_array = color_array.T
 
-# クラスタ分析(クラスタ数=15)で色の種類を絞る
-pred = KMeans(n_clusters=15).fit_predict(cust_array)
+# クラスタ分析(クラスタ数=ART_PALETTE)で色の種類を絞る
+pred = KMeans(n_clusters=ART_PALETTE).fit_predict(color_array)
+
+# 分類ナンバーを追加
 df_all_color['color'] = pred
 
 cluster_RGB_list = []
-HSV_list = []
-for i in range(15):
+cluster_HSV_list = []
+for i in range(ART_PALETTE):
+    # クラスターの平均色を取得
     cluster_RGB = df_all_color[df_all_color['color'] == i].mean()
-
-    cluster_RGB_list.append([])
-    cluster_RGB_list[i].append(round(cluster_RGB[0]))
-    cluster_RGB_list[i].append(round(cluster_RGB[1]))
-    cluster_RGB_list[i].append(round(cluster_RGB[2]))
     
-    # HSV_list[i].append(round(getHue(list(cluster_RGB))/360 * 30))
-    # HSV_list[i].append(round(getSaturation(list(cluster_RGB))*15))
-    # HSV_list[i].append(round(getBrightness(list(cluster_RGB))/255*15))
-
+    cluster_RGB_list.append([])
+    
+    for color in cluster_RGB:
+        cluster_RGB_list[i].append(round(color))
+    
     hsv = colorsys.rgb_to_hsv(cluster_RGB[0], cluster_RGB[1], cluster_RGB[2])
-    HSV_list.append([])
-    HSV_list[i].append(math.ceil(hsv[0] * 30))
-    HSV_list[i].append(math.ceil(hsv[1] * 15))
-    HSV_list[i].append(math.ceil(hsv[2]/255 * 15))
-    # HSV_list[i].append(round(getSaturation(list(cluster_RGB))*15))
-    # HSV_list[i].append(round(getBrightness(list(cluster_RGB))/255*15))
+    cluster_HSV_list.append([])
 
+    cluster_HSV_list[i].append(math.ceil(hsv[0] * ART_COLOR_VARIETY))
+    cluster_HSV_list[i].append(math.ceil(hsv[1] * ART_BRIGHTNESS_VARIERY))
+    cluster_HSV_list[i].append(math.ceil(hsv[2]/255 * ART_VIVIDNESS_VARIETY))
+    
+    # 上記では、いずれも要素の値が0より大きいと仮定して切り上げているため、0の場合は1に変更する
+    for j in range(COLOR_VARIETY):
+        if cluster_HSV_list[i][j] == 0:
+            cluster_HSV_list[i][j] = 1
 
-# ゲージ
-GAUGE_WIDTH = 30
-now_pacentage = 0 # 範囲: 0 - 100
 
 # 描画
 for index, row in df_all_color.iterrows():
@@ -225,12 +230,10 @@ for i in range(ART_PALETTE):
     ws.cell(row=i+3, column=ART_WH + 3).value = i + 1
     ws.cell(row=i+3, column=ART_WH + 3).font = openpyxl.styles.fonts.Font(color=getFontColor(cluster_RGB_list[i]))
 
-    ws.cell(row=i+3, column=ART_WH + 4).value = HSV_list[i][0]
-    ws.cell(row=i+3, column=ART_WH + 5).value = HSV_list[i][1]
-    ws.cell(row=i+3, column=ART_WH + 6).value = HSV_list[i][2]
+    for factor in range(COLOR_VARIETY):
+        ws.cell(row=i+3, column=ART_WH + 4 + factor).value = cluster_HSV_list[i][factor]
 
 # ファイルのエクスポート
-print('')
 print("saving...")
 
 output_file = input_file.replace('.jpg', '.xlsx')
